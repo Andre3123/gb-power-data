@@ -1,0 +1,37 @@
+[project]
+name = "gb-power-data"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Your Name", email = "your@email.com" }
+]
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "blast-lite>=1.1.1",
+    "duckdb>=1.5.6",
+    "elexon-bmrs>=0.3.0",
+    "highspy>=1.15.1",
+    "linopy>=0.9.1",
+    "pandas>=2.3.3",
+    "pandera>=0.33.1",
+    "poethepoet>=0.48.0",
+    "pyarrow>=25.0.1",
+    "pydantic>=2",
+    "rainflow>=3.2.0",
+    "zenml>=0.97.0",
+]
+
+[project.scripts]
+gbpd-find-bmu= "gb_power_data.ingest.bmunits:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
