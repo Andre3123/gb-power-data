@@ -24,6 +24,8 @@ dependencies = [
 
 [project.scripts]
 gbpd-find-bmu= "gb_power_data.ingest.bmunits:main"
+gbpd-prices= "gb_power_data.ingest.prices:main"
+gbpd-validate = "gb_power_data.validate.prices:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
