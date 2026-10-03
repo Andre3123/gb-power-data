@@ -28,9 +28,10 @@ def _rows(response) -> list[dict]:
 def fetch_mid(start: date, end: date) -> pd.DataFrame:
     client = BMRSClient()
     frames = []
-    day = start
-    while day <= end:
-        stop = min(day + timedelta(days=CHUNK_DAYS), end + timedelta(days=1))
+    day = start - timedelta(days=1)   # BST settlement days start 23:00 UTC the day before
+    last = end + timedelta(days=1)
+    while day <= last:
+        stop = min(day + timedelta(days=CHUNK_DAYS), last + timedelta(days=1))
         resp = client.get_balancing_pricing_market_index(
             from_=f"{day}T00:00Z", to_=f"{stop}T00:00Z"
         )
@@ -38,9 +39,8 @@ def fetch_mid(start: date, end: date) -> pd.DataFrame:
         day = stop
     df = pd.concat(frames, ignore_index=True).rename(columns=CAMEL_TO_SNAKE)
     df = df.drop_duplicates(subset=["start_time", "data_provider"])
-    df["start_time"]= pd.to_datetime(df["start_time"], utc=True)
-    end_exclusive= pd.Timestamp(end + timedelta(days=1), tz="UTC")
-    df=df[df["start_time"] < end_exclusive]
+    df["settlement_date"] = pd.to_datetime(df["settlement_date"]).dt.date
+    df = df[(df["settlement_date"] >= start) & (df["settlement_date"] <= end)]
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(RAW_DIR / f"mid_{start}_{end}.parquet", index=False)
     return df
