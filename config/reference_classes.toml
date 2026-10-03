@@ -1,0 +1,23 @@
+#reference classes ("groups of similar days"), fixed on 2026-10-03
+#BEFORE any claim was scored . source: data/processed/prices_pax.parquet
+#Boundaries computed from the learning period (2023-01-01 to 2024-12-31) only.
+
+[spread] #daily price movment =max price - min price (GBP/mwh)
+
+calm_below= 52.8
+wild_above= 82.3
+
+[negative] # days has at least one negative half hour price 
+min_test= 60
+
+[counts.learning] # 2023-24, 728 days 
+calm= 243
+normal= 242
+wild= 243
+negative =108
+
+[counts.test] # 2025-2026 (to 30 sep 2026), 633 days 
+calm= 227
+normal= 184
+wild= 222
+negative =86
