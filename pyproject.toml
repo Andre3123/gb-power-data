@@ -19,13 +19,14 @@ dependencies = [
     "pyarrow>=25.0.1",
     "pydantic>=2",
     "rainflow>=3.2.0",
-    "zenml>=0.97.0",
+    "zenml[local]>=0.97.0",
 ]
 
 [project.scripts]
 gbpd-find-bmu= "gb_power_data.ingest.bmunits:main"
 gbpd-prices= "gb_power_data.ingest.prices:main"
 gbpd-validate = "gb_power_data.validate.prices:main"
+gbpd-pipeline = "gb_power_data.pipelines.prices:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
