@@ -5,15 +5,14 @@ functions together as ZenML steps, so ZenML can be swapped out later.
 """
 
 import sys
-
 from datetime import date
 
-import pandas as pd 
-from zenml import log_metadata, pipeline, step 
+import pandas as pd
+from zenml import log_metadata, pipeline, step
 
 from gb_power_data.ingest.prices import fetch_mid
-
 from gb_power_data.validate.prices import clean_apx, schema
+
 
 @step
 def ingest_prices(start: str, end: str) -> pd.DataFrame:
