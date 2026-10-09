@@ -38,10 +38,12 @@ def test_backtest_claim_is_accepted_and_marked_as_backtest():
 def test_rejects_data_from_after_the_claim_moment():
     # the 18:00 / 23:00 mistake from the design exercise
     with pytest.raises(ValidationError, match="data from the future"):
-        Claim(**pillswood_claim(
-            as_of=datetime(2025, 1, 7, 18, 0, tzinfo=UTC),
-            data_cutoff=datetime(2025, 1, 7, 23, 0, tzinfo=UTC),
-        ))
+        Claim(
+            **pillswood_claim(
+                as_of=datetime(2025, 1, 7, 18, 0, tzinfo=UTC),
+                data_cutoff=datetime(2025, 1, 7, 23, 0, tzinfo=UTC),
+            )
+        )
 
 
 def test_rejects_a_range_that_does_not_contain_the_point():
@@ -51,10 +53,10 @@ def test_rejects_a_range_that_does_not_contain_the_point():
 
 def test_rejects_times_without_a_timezone():
     with pytest.raises(ValidationError):
-        Claim(**pillswood_claim(as_of=datetime(2025, 1, 8, 0, 0)))
+        Claim(**pillswood_claim(as_of=datetime(2025, 1, 8, 0, 0)))  # noqa: DTZ001 - deliberately naive
 
 
 def test_claim_cannot_be_edited_after_creation():
     claim = Claim(**pillswood_claim())
     with pytest.raises(ValidationError):
-        claim.point = 232597
+        claim.point = 23259
