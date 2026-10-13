@@ -698,7 +698,6 @@ dependencies = [
     { name = "linopy" },
     { name = "pandas" },
     { name = "pandera" },
-    { name = "poethepoet" },
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "rainflow" },
@@ -707,6 +706,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "poethepoet" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "ruff" },
@@ -721,7 +721,6 @@ requires-dist = [
     { name = "linopy", specifier = ">=0.9.1" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandera", specifier = ">=0.33.1" },
-    { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "pydantic", specifier = ">=2" },
     { name = "rainflow", specifier = ">=3.2.0" },
@@ -730,6 +729,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "poethepoet", specifier = ">=0.48.0" },
     { name = "pre-commit", specifier = ">=4.6.2" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.9" },

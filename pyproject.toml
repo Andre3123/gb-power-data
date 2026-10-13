@@ -1,10 +1,10 @@
 [project]
 name = "gb-power-data"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pillswood battery dispatch and Calibra claim ledger on real Elexon price data"
 readme = "README.md"
 authors = [
-    { name = "Your Name", email = "your@email.com" }
+    { name = "Andre" }
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -15,7 +15,6 @@ dependencies = [
     "linopy>=0.9.1",
     "pandas>=2.3.3",
     "pandera>=0.33.1",
-    "poethepoet>=0.48.0",
     "pyarrow>=25.0.1",
     "pydantic>=2",
     "rainflow>=3.2.0",
@@ -23,10 +22,11 @@ dependencies = [
 ]
 
 [project.scripts]
-gbpd-find-bmu= "gb_power_data.ingest.bmunits:main"
-gbpd-prices= "gb_power_data.ingest.prices:main"
+gbpd-find-bmu = "gb_power_data.ingest.bmunits:main"
+gbpd-prices = "gb_power_data.ingest.prices:main"
 gbpd-validate = "gb_power_data.validate.prices:main"
 gbpd-pipeline = "gb_power_data.pipelines.prices:main"
+gbpd-dispatch = "gb_power_data.optimise.run_day:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
@@ -34,6 +34,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.48.0",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "ruff>=0.16.9",
