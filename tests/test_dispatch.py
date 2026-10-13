@@ -83,6 +83,7 @@ def test_rejects_prices_with_gaps():
     with pytest.raises(ValueError, match="no gaps"):
         solve_day(prices, SITE)
 
+
 def test_shadow_price_is_the_cost_then_the_value_of_a_stored_mwh():
     # while filling at GBP 40, one stored MWh cost 40 / 0.95; once full and waiting to sell
     # at GBP 150, one stored MWh is worth 150 * 0.95 (Lagrangian of the storage problem)
