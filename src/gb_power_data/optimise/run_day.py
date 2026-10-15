@@ -8,7 +8,7 @@ import sys
 
 import pandas as pd
 
-from gb_power_data.optimise.dispatch import Site, solve_day, shadow_prices
+from gb_power_data.optimise.dispatch import Site, shadow_prices, solve_day
 
 PRICES = "data/processed/prices_apx.parquet"
 

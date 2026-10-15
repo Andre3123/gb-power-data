@@ -28,6 +28,7 @@ gbpd-validate = "gb_power_data.validate.prices:main"
 gbpd-pipeline = "gb_power_data.pipelines.prices:main"
 gbpd-dispatch = "gb_power_data.optimise.run_day:main"
 gbpd-backtest = "gb_power_data.claims.run_backtest:main"
+gbpd-calibrate = "gb_power_data.calibration.run_calibrate:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
