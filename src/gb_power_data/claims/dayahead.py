@@ -56,7 +56,14 @@ def plan_revenue(net_mw: np.ndarray, p: pd.Series, dt_h: float) -> float:
     return float((p.to_numpy(dtype=float) * net_mw * dt_h).sum())
 
 
-def make_claim(prices: pd.DataFrame, d: date, site: Site, code_version: str) -> Claim | None:
+def make_claim(
+        prices: pd.DataFrame,
+        d: date, 
+        site: Site, 
+        code_version: str,
+        label:str="persistence",
+        half_width: float | None=None,
+    ) -> Claim | None:
     """Claim for day d, or None if the forecast day is missing or has a different length
     (clock-change days have 46 or 50 periods, so persistence cannot be lined up)."""
     source = d - timedelta(days=2)
@@ -66,10 +73,11 @@ def make_claim(prices: pd.DataFrame, d: date, site: Site, code_version: str) -> 
     plan = solve_day(forecast, site)
     net = (plan.schedule.discharge_mw - plan.schedule.charge_mw).to_numpy()
     point = plan.revenue_gbp
-    half = NAIVE_WIDTH * abs(point)
+    half = NAIVE_WIDTH * abs(point) if half_width is None else half_width
+    interval = f"naive +-{NAIVE_WIDTH:.0%}" if half_width is None else f"+-GBP {half_width:,.0f}"
     return Claim(
-        claim_id=f"pillswood-persistence-{d}",
-        agent_id="persistence-dispatch",
+        claim_id=f"pillswood-{label}-{d}",
+        agent_id=f"{label}-dispatch",
         model_version="0.1",
         code_version=code_version,
         as_of=uk_midnight(d - timedelta(days=1)),
@@ -88,7 +96,7 @@ def make_claim(prices: pd.DataFrame, d: date, site: Site, code_version: str) -> 
         context={
             "site": "Pillswood",
             "forecast": "persistence from D-2",
-            "interval": f"naive +-{NAIVE_WIDTH:.0%}",
+            "interval": interval,
             "dt_h": site.dt_h,
             "plan_net_mw": [round(x, 6) for x in net],
         },
@@ -105,15 +113,22 @@ class BacktestSummary:
 
 
 def backtest(
-    prices: pd.DataFrame, start: date, end: date, site: Site, ledger: Ledger, code_version: str
+    prices: pd.DataFrame, 
+    start: date, 
+    end: date, 
+    site: Site, 
+    ledger: Ledger, 
+    code_version: str,
+    label: str = "persistence",
+    half_width: float | None = None,
 ) -> BacktestSummary:
     rows, skipped = [], 0
     for d in pd.date_range(start, end).date:
-        claim_id = f"pillswood-persistence-{d}"
+        claim_id = f"pillswood-{label}-{d}"
         try:
             claim = ledger.get_claim(claim_id)  # already claimed in an earlier run
         except KeyError:
-            new = make_claim(prices, d, site, code_version)
+            new = make_claim(prices, d, site, code_version, label, half_width)
             if new is None:
                 skipped += 1
                 continue
