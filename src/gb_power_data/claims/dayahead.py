@@ -62,10 +62,12 @@ def make_claim(
         site: Site, 
         code_version: str,
         label:str="persistence",
-        half_width: float | None=None,
+        half_width: float | dict[str, float] | None=None,
     ) -> Claim | None:
     """Claim for day d, or None if the forecast day is missing or has a different length
-    (clock-change days have 46 or 50 periods, so persistence cannot be lined up)."""
+    (clock-change days have 46 or 50 periods, so persistence cannot be lined up).
+    half_width None gives the naive +-40% range; a number gives point +- that many GBP;
+    a dict gives one learned half-width per day type (Mondrian), picked by the forecast's class"""
     source = d - timedelta(days=2)
     forecast, actual = day_prices(prices, source), day_prices(prices, d)
     if forecast.empty or actual.empty or len(forecast) != len(actual):
@@ -73,6 +75,8 @@ def make_claim(
     plan = solve_day(forecast, site)
     net = (plan.schedule.discharge_mw - plan.schedule.charge_mw).to_numpy()
     point = plan.revenue_gbp
+    if isinstance(half_width,dict): #mondrian : the half-width learned 
+        half_width=half_width[spread_class(forecast)]
     half = NAIVE_WIDTH * abs(point) if half_width is None else half_width
     interval = f"naive +-{NAIVE_WIDTH:.0%}" if half_width is None else f"+-GBP {half_width:,.0f}"
     return Claim(
@@ -120,7 +124,7 @@ def backtest(
     ledger: Ledger, 
     code_version: str,
     label: str = "persistence",
-    half_width: float | None = None,
+    half_width: float | dict[str, float] | None = None,
 ) -> BacktestSummary:
     rows, skipped = [], 0
     for d in pd.date_range(start, end).date:

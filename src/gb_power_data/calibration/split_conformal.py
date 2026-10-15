@@ -25,12 +25,24 @@ def conformal_half_width(residuals: np.ndarray, coverage: float) -> float:
         raise ValueError(f"need at least {need} past errors for {coverage:.0%} coverage")
     return float(np.sort(np.abs(residuals))[k - 1])
 
+def mondrian_half_widths(by_class: dict[str, np.ndarray], coverage: float) -> dict[str, float]:
+    """One half-width per day type, each learned only from that type's own past errors."""
+    widths = {}
+    for cls, residuals in sorted(by_class.items()):
+        try:
+            widths[cls] = conformal_half_width(residuals, coverage)
+        except ValueError as err:
+            raise ValueError(f"class '{cls}': {err}") from err
+    return widths
 
-def residuals_from_ledger(ledger: Ledger, agent_id: str, start: date, end: date) -> np.ndarray:
-    """realised - claimed point, for one agent's resolved claims with targets in [start, end]."""
+
+def residuals_by_class(
+    ledger: Ledger, agent_id: str, start: date, end: date
+) -> dict[str, np.ndarray]:
+    """realised - claimed point, grouped by the claim's day type (its reference class)."""
     rows = ledger.con.execute(
         """
-        SELECT r.realised_value - c.point
+        SELECT c.reference_class, r.realised_value - c.point
         FROM claims c
         JOIN resolutions r ON r.claim_id = c.claim_id
         WHERE c.agent_id = ?
@@ -41,7 +53,17 @@ def residuals_from_ledger(ledger: Ledger, agent_id: str, start: date, end: date)
         """,
         [agent_id, _utc(start), _utc(end + timedelta(days=1))],
     ).fetchall()
-    return np.array([r[0] for r in rows], dtype=float)
+    grouped: dict[str, list[float]] = {}
+    for cls, residual in rows:
+        grouped.setdefault(cls, []).append(residual)
+    return {cls: np.array(values, dtype=float) for cls, values in grouped.items()}
+
+
+def residuals_from_ledger(ledger: Ledger, agent_id: str, start: date, end: date) -> np.ndarray:
+    """realised - claimed point, for one agent's resolved claims with targets in [start, end]."""
+    by_class = residuals_by_class(ledger, agent_id, start, end)
+    return np.concatenate(list(by_class.values())) if by_class else np.array([], dtype=float)
+
 
 
 def _utc(d: date):
