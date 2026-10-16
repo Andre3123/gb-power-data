@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calibra report {{ start }} to {{ end }}</title>
+<script type="text/javascript">{{ plotly_js | safe }}</script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 2rem auto;
+         max-width: 1100px; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: 0.2rem; }
+  h2 { margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  .sub { color: #666; margin-top: 0; }
+  .note { background: #fff8e1; border-left: 4px solid #f0ad4e; padding: 0.7rem 1rem; }
+  table { border-collapse: collapse; margin: 0.5rem 0 1.5rem; }
+  th, td { padding: 0.3rem 0.8rem; border-bottom: 1px solid #eee; white-space: nowrap; }
+  th { text-align: left; background: #f6f6f6; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  footer { margin-top: 3rem; color: #666; font-size: 0.9rem; border-top: 1px solid #ddd; }
+  code { font-size: 0.9em; }
+</style>
+</head>
+<body>
+<h1>Calibra report: did the agents keep their {{ "%.0f" % (promised * 100) }}% promises?</h1>
+<p class="sub">Day-ahead revenue claims for Pillswood, target dates {{ start }} to {{ end }}
+(inclusive, UK days). Each claim promises its range holds {{ "%.0f" % (promised * 100) }}% of
+the time. Only the latest resolution of each claim is used.</p>
+
+<p class="note"><strong>Note:</strong> the interval score is a forecast-quality score in GBP
+units: the range width plus 20&times; the distance by which the realised value fell outside
+the range (2/&alpha; with &alpha; = 0.10, the promised miss rate). Lower is better.
+It is <strong>NOT money saved</strong>.</p>
+
+<h2>1. Headline</h2>
+<table>
+  <tr><th>Agent</th><th>Claims</th><th>Coverage</th><th>Mean width (GBP)</th>
+      <th>Mean interval score</th></tr>
+  {% for agent, row in headline.iterrows() %}
+  <tr><td>{{ agent }}</td><td class="num">{{ row.claims | int }}</td>
+      <td class="num">{{ row.coverage | pct }}</td><td class="num">{{ row.mean_width | gbp }}</td>
+      <td class="num">{{ row.mean_score | gbp }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>2. Coverage by day type</h2>
+{{ charts.day_type | safe }}
+
+<h2>3. Rolling coverage</h2>
+{{ charts.rolling | safe }}
+
+<h2>4. Daily interval score</h2>
+<p>Log scale, so a few extreme days stay visible next to ordinary ones.</p>
+{{ charts.daily | safe }}
+
+<h2>5. Top 10 most expensive days</h2>
+<p>Highest daily interval score per agent. "Bill" = that day's interval score.</p>
+<div>
+{% for agent in agents %}
+  <div>
+  <h3>{{ agent }}</h3>
+  {% if agent in top_days %}
+  <table>
+    <tr><th>Date</th><th>Day type</th><th>Lower</th><th>Upper</th><th>Realised</th>
+        <th>Bill</th></tr>
+    {% for _, d in top_days[agent].iterrows() %}
+    <tr><td>{{ d.day }}</td><td>{{ d.day_type }}</td><td class="num">{{ d.lower | gbp }}</td>
+        <td class="num">{{ d.upper | gbp }}</td><td class="num">{{ d.realised | gbp }}</td>
+        <td class="num">{{ d.score | gbp }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No resolved claims in this range.</p>
+  {% endif %}
+  </div>
+{% endfor %}
+</div>
+
+<footer>
+<p>Ledger: <code>{{ ledger_path }}</code> (opened read-only)</p>
+<p>Code versions (git commits in <code>claims.code_version</code>):
+{% for c in commits %}<code>{{ c }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+{% if unresolved %}<p>{{ unresolved }} claim(s) in this range are not resolved yet and are
+not counted.</p>{% endif %}
+<p>Generated {{ generated_at }}</p>
+</footer>
+</body>
+</html>
