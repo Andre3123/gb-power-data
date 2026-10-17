@@ -20,6 +20,7 @@ from gb_power_data.claims.dayahead import backtest
 from gb_power_data.claims.run_backtest import LEDGER, git_commit
 from gb_power_data.ledger.store import Ledger
 from gb_power_data.optimise.run_day import PILLSWOOD, PRICES
+from gb_power_data.scopegate.gate import learn_gate
 
 COVERAGE = 0.90
 
@@ -48,6 +49,11 @@ def main() -> None:
     naive = backtest(prices, test_start, test_end, PILLSWOOD, ledger, commit)
     split = backtest(prices, test_start, test_end, PILLSWOOD, ledger, commit, "persistence-cp", q)
     mond = backtest(prices, test_start, test_end, PILLSWOOD, ledger, commit, "persistence-mcp", qs)
+    # 4. Mondrian again, with ScopeGate flagging days unlike the learning period
+    gate = learn_gate(prices, learn_start, learn_end)
+    gated = backtest(
+        prices, test_start, test_end, PILLSWOOD, ledger, commit, "persistence-gate", qs, gate=gate
+    )
     ledger.close()
 
     runs = {"naive +-40%": naive, "split conformal": split, "mondrian": mond}
@@ -59,6 +65,8 @@ def main() -> None:
     for name in ("split conformal", "mondrian"):
         print(f"\nby day type, {name}:")
         print(runs[name].by_class.round(2).to_string())
+    print("\nScopeGate on Mondrian (in_scope False = flagged, Calibra does not vouch):")
+    print(gated.by_scope.round(2).to_string())
 
 
 if __name__ == "__main__":
