@@ -71,6 +71,7 @@ def test_explain_flag_gives_facts_and_rejects_unknown_features(service):
     assert low <= high
     assert facts["day"]["value"] > high
     assert facts["day"]["learning_days_as_extreme"] == 0  # nothing like it was ever seen
+    assert facts["day"]["history"].startswith("never seen: lack of data")
     with pytest.raises(ValueError, match="unknown feature"):
         service.explain_flag("wind")
 

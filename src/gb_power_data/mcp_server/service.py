@@ -185,10 +185,12 @@ class CalibraService:
         ].dropna()
         median = learning.median()
         as_extreme = (learning >= value) if value >= median else (learning <= value)
+        count = int(as_extreme.sum())
         return {
             "value": round(value, 2),
             "learning_days": len(learning),
-            "learning_days_as_extreme": int(as_extreme.sum()),
+            "learning_days_as_extreme": count,
+            "history": _history_label(count, len(learning)),
         }
 
     def _resolved(self, agent_id: str, start: date, end: date) -> pd.DataFrame:
@@ -223,6 +225,15 @@ class CalibraService:
         df["in_scope"] = context.map(lambda c: c.get("in_scope", True))
         df["scope"] = context.map(_scope_label)
         return df
+
+
+def _history_label(count: int, total: int) -> str:
+    """How much past evidence exists for a value this extreme (sets the uncertainty type)."""
+    if count == 0:
+        return "never seen: lack of data (epistemic)"
+    if count <= 0.01 * total:
+        return "rare: little data (mostly epistemic)"
+    return "seen before: enough data (randomness is the likelier cause)"
 
 
 def _scope_label(context: dict) -> str:
