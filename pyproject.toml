@@ -13,6 +13,7 @@ dependencies = [
     "elexon-bmrs>=0.3.0",
     "highspy>=1.15.1",
     "linopy>=0.9.1",
+    "mcp>=2.3,<3",
     "pandas>=2.3.3",
     "pandera>=0.33.1",
     "pyarrow>=25.0.1",
@@ -29,6 +30,7 @@ gbpd-pipeline = "gb_power_data.pipelines.prices:main"
 gbpd-dispatch = "gb_power_data.optimise.run_day:main"
 gbpd-backtest = "gb_power_data.claims.run_backtest:main"
 gbpd-calibrate = "gb_power_data.calibration.run_calibrate:main"
+gbpd-mcp = "gb_power_data.mcp_server.server:main" 
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
