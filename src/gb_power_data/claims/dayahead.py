@@ -3,6 +3,7 @@
 The agent plans day D on the day before at 00:00 UK time. The newest complete day it can see
 then is D-2, so the price forecast is D-2's prices (persistence). The claim is the plan's
 expected revenue; the resolution is what the same, fixed plan earns on D's real prices.
+
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from gb_power_data.ledger.models import Claim
 from gb_power_data.ledger.scoring import interval_score, is_covered
 from gb_power_data.ledger.store import Ledger
 from gb_power_data.optimise.dispatch import Site, solve_day
+from gb_power_data.scopegate.gate import ScopeGate
 
 UK = ZoneInfo("Europe/London")
 CLASSES = Path("config/reference_classes.toml")
@@ -57,17 +59,19 @@ def plan_revenue(net_mw: np.ndarray, p: pd.Series, dt_h: float) -> float:
 
 
 def make_claim(
-        prices: pd.DataFrame,
-        d: date, 
-        site: Site, 
-        code_version: str,
-        label:str="persistence",
-        half_width: float | dict[str, float] | None=None,
-    ) -> Claim | None:
+    prices: pd.DataFrame,
+    d: date,
+    site: Site,
+    code_version: str,
+    label: str = "persistence",
+    half_width: float | dict[str, float] | None = None,
+    scope_flags: list[str] | None = None,
+) -> Claim | None:
     """Claim for day d, or None if the forecast day is missing or has a different length
     (clock-change days have 46 or 50 periods, so persistence cannot be lined up).
     half_width None gives the naive +-40% range; a number gives point +- that many GBP;
-    a dict gives one learned half-width per day type (Mondrian), picked by the forecast's class"""
+    a dict gives one learned half-width per day type (Mondrian), picked by the forecast's class.
+    scope_flags come from ScopeGate: an empty list means in scope; None means not checked."""
     source = d - timedelta(days=2)
     forecast, actual = day_prices(prices, source), day_prices(prices, d)
     if forecast.empty or actual.empty or len(forecast) != len(actual):
@@ -75,8 +79,8 @@ def make_claim(
     plan = solve_day(forecast, site)
     net = (plan.schedule.discharge_mw - plan.schedule.charge_mw).to_numpy()
     point = plan.revenue_gbp
-    if isinstance(half_width,dict): #mondrian : the half-width learned 
-        half_width=half_width[spread_class(forecast)]
+    if isinstance(half_width, dict):  # mondrian : the half-width learned
+        half_width = half_width[spread_class(forecast)]
     half = NAIVE_WIDTH * abs(point) if half_width is None else half_width
     interval = f"naive +-{NAIVE_WIDTH:.0%}" if half_width is None else f"+-GBP {half_width:,.0f}"
     return Claim(
@@ -103,6 +107,8 @@ def make_claim(
             "interval": interval,
             "dt_h": site.dt_h,
             "plan_net_mw": [round(x, 6) for x in net],
+            "scope_flags": scope_flags,  # None: ScopeGate was not used
+            "in_scope": not scope_flags,
         },
     )
 
@@ -114,17 +120,19 @@ class BacktestSummary:
     coverage: float
     mean_interval_score: float
     by_class: pd.DataFrame
+    by_scope: pd.DataFrame
 
 
 def backtest(
-    prices: pd.DataFrame, 
-    start: date, 
-    end: date, 
-    site: Site, 
-    ledger: Ledger, 
+    prices: pd.DataFrame,
+    start: date,
+    end: date,
+    site: Site,
+    ledger: Ledger,
     code_version: str,
     label: str = "persistence",
     half_width: float | dict[str, float] | None = None,
+    gate: ScopeGate | None = None,
 ) -> BacktestSummary:
     rows, skipped = [], 0
     for d in pd.date_range(start, end).date:
@@ -132,7 +140,8 @@ def backtest(
         try:
             claim = ledger.get_claim(claim_id)  # already claimed in an earlier run
         except KeyError:
-            new = make_claim(prices, d, site, code_version, label, half_width)
+            flags = gate.flags(d) if gate is not None else None
+            new = make_claim(prices, d, site, code_version, label, half_width, flags)
             if new is None:
                 skipped += 1
                 continue
@@ -150,6 +159,7 @@ def backtest(
             {
                 "day": d,
                 "class": claim.reference_class,
+                "in_scope": claim.context.get("in_scope", True),
                 "has_negative": bool((actual < 0).any()),
                 "covered": is_covered(claim, res),
                 "interval_score": interval_score(claim, res),
@@ -163,10 +173,18 @@ def backtest(
         coverage=("covered", "mean"),
         mean_score=("interval_score", "mean"),
     )
+    by_scope = df.groupby("in_scope").agg(
+        claims=("covered", "size"),
+        coverage=("covered", "mean"),
+        mean_score=("interval_score", "mean"),
+        share_of_bill=("interval_score", "sum"),
+    )
+    by_scope["share_of_bill"] /= df["interval_score"].sum()
     return BacktestSummary(
         claims=len(df),
         skipped=skipped,
         coverage=float(df["covered"].mean()),
         mean_interval_score=float(df["interval_score"].mean()),
         by_class=by_class,
+        by_scope=by_scope,
     )

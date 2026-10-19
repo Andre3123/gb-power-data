@@ -42,6 +42,7 @@ def test_learned_width_is_used_and_errors_come_from_one_agent_only(tmp_path):
     assert len(errors) == 3  # only the naive agent's three claims, not the conformal ones
     ledger.close()
 
+
 def test_mondrian_learns_one_width_per_day_type():
     by_class = {
         "calm": np.arange(1, 10, dtype=float),  # sizes 1..9

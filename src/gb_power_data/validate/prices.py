@@ -20,10 +20,9 @@ schema = pa.DataFrameSchema(
         "imputed": pa.Column(bool),
     },
     checks=pa.Check(
-        lambda d: d.groupby("settlement_date")["settlement_period"]
-        .count()
-        .isin([46, 48, 50])
-        .all(),
+        lambda d: (
+            d.groupby("settlement_date")["settlement_period"].count().isin([46, 48, 50]).all()
+        ),
         error="every settlement day must have 46, 48 or 50 periods",
     ),
     coerce=True,

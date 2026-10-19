@@ -25,6 +25,7 @@ def conformal_half_width(residuals: np.ndarray, coverage: float) -> float:
         raise ValueError(f"need at least {need} past errors for {coverage:.0%} coverage")
     return float(np.sort(np.abs(residuals))[k - 1])
 
+
 def mondrian_half_widths(by_class: dict[str, np.ndarray], coverage: float) -> dict[str, float]:
     """One half-width per day type, each learned only from that type's own past errors."""
     widths = {}
@@ -63,7 +64,6 @@ def residuals_from_ledger(ledger: Ledger, agent_id: str, start: date, end: date)
     """realised - claimed point, for one agent's resolved claims with targets in [start, end]."""
     by_class = residuals_by_class(ledger, agent_id, start, end)
     return np.concatenate(list(by_class.values())) if by_class else np.array([], dtype=float)
-
 
 
 def _utc(d: date):

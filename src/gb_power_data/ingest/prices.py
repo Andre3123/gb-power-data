@@ -28,7 +28,7 @@ def _rows(response) -> list[dict]:
 def fetch_mid(start: date, end: date) -> pd.DataFrame:
     client = BMRSClient()
     frames = []
-    day = start - timedelta(days=1)   # BST settlement days start 23:00 UTC the day before
+    day = start - timedelta(days=1)  # BST settlement days start 23:00 UTC the day before
     last = end + timedelta(days=1)
     while day <= last:
         stop = min(day + timedelta(days=CHUNK_DAYS), last + timedelta(days=1))
