@@ -6,6 +6,11 @@ or score its own claims: that is Calibra's job, done after the agent has committ
 Run: uv run gbpd-agent 2025-03-12 2025-03-13
 Needs CALIBRA_LM (a LiteLLM model string, e.g. "anthropic/<model>" or "openai/<model>")
 and that provider's API key in the environment (e.g. ANTHROPIC_API_KEY or OPENAI_API_KEY).
+
+Optional Opik tracing: on only when OPIK_API_KEY is set and opik is installed. opik is not a
+project dependency, so add it for the run (other OPIK_* settings, e.g. OPIK_WORKSPACE and
+OPIK_PROJECT_NAME, are read by opik itself):
+     OPIK_API_KEY=... uv run --with opik gbpd-agent 2025-03-12
 """
 
 from __future__ import annotations
@@ -24,6 +29,22 @@ from mcp.client.stdio import get_default_environment
 
 AGENT_TOOLS = ("scope_check", "explain_flag", "make_claim")  # no resolve: no self-grading
 RUNS = Path("data/agent_runs.jsonl")
+
+
+def tracing_callbacks() -> list[dspy.utils.callback.BaseCallback]:
+    """Opik's DSPy callback if OPIK_API_KEY is set and opik is installed; otherwise none."""
+    if not os.environ.get("OPIK_API_KEY"):
+        return []
+    try:
+        from opik.integrations.dspy.callback import OpikCallback
+    except ImportError:
+        print(
+            "OPIK_API_KEY is set but opik is not installed, so tracing is off; "
+            "run with `uv run --with opik gbpd-agent ...`",
+            file=sys.stderr,
+        )
+        return []
+    return [OpikCallback()]
 
 
 class ClaimDay(dspy.Signature):
@@ -85,8 +106,15 @@ def main() -> None:
     model = os.environ.get("CALIBRA_LM")
     if not model:
         sys.exit('set CALIBRA_LM first, e.g. export CALIBRA_LM="anthropic/<model name>"')
-    dspy.configure(lm=dspy.LM(model, temperature=0.0))
-    results = asyncio.run(_run(sys.argv[1:]))
+    callbacks = tracing_callbacks()
+    dspy.configure(lm=dspy.LM(model, temperature=0.0), callbacks=callbacks)
+    try:
+        results = asyncio.run(_run(sys.argv[1:]))
+    finally:
+        if callbacks:
+            import opik
+
+            opik.flush_tracker()  # send queued traces before the process exits
     RUNS.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).isoformat(timespec="seconds")
     with RUNS.open("a", encoding="utf-8") as f:
