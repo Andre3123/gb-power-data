@@ -6,6 +6,7 @@ The docstrings below are what the agent reads to decide which tool to call.
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from typing import Any
 
@@ -67,7 +68,15 @@ def build_server(service: CalibraService) -> MCPServer:
 def main() -> None:
     prices = pd.read_parquet(PRICES)
     prices["settlement_date"] = pd.to_datetime(prices["settlement_date"]).dt.date
-    service = CalibraService(prices, LEDGER, LEARN_START, LEARN_END, PILLSWOOD, git_commit())
+    service = CalibraService(
+        prices,
+        LEDGER,
+        LEARN_START,
+        LEARN_END,
+        PILLSWOOD,
+        git_commit(),
+        agent_model=os.environ.get("CALIBRA_LM"),  # set by the agent that starts this server
+    )
     build_server(service).run("stdio")
 
 

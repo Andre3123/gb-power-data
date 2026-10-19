@@ -96,3 +96,11 @@ def test_a_flagged_day_can_be_claimed_and_the_reason_is_kept(service):
     service.resolve(claim["claim_id"])
     report = service.ledger_report("agent-dispatch", START, SPIKE + timedelta(days=4))
     assert report["by_scope"]["flagged_with_reason"]["claims"] == 1
+
+
+def test_claims_record_which_ai_model_made_them(service):
+    named = CalibraService(
+        service.prices, service.ledger_path, START, LEARN_END, SITE, "t", agent_model="test/m1"
+    )
+    claim = named.make_claim(START + timedelta(days=41))
+    assert claim["model_version"] == "agent:test/m1"

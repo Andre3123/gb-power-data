@@ -33,6 +33,7 @@ gbpd-backtest = "gb_power_data.claims.run_backtest:main"
 gbpd-calibrate = "gb_power_data.calibration.run_calibrate:main"
 gbpd-mcp = "gb_power_data.mcp_server.server:main" 
 gbpd-agent = "gb_power_data.agent.dispatch_agent:main"
+gbpd-physics = "gb_power_data.physics.run_physics:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]

@@ -20,6 +20,7 @@ from typing import Literal
 
 import dspy
 from mcp import Client, StdioServerParameters
+from mcp.client.stdio import get_default_environment
 
 AGENT_TOOLS = ("scope_check", "explain_flag", "make_claim")  # no resolve: no self-grading
 RUNS = Path("data/agent_runs.jsonl")
@@ -73,7 +74,9 @@ async def claim_days(client: Client, days: list[str]) -> list[dict]:
 
 
 async def _run(days: list[str]) -> list[dict]:
-    server = StdioServerParameters(command="uv", args=["run", "gbpd-mcp"])
+    # the server gets a minimal environment plus the model name (never the API key)
+    env = {**get_default_environment(), "CALIBRA_LM": os.environ["CALIBRA_LM"]}
+    server = StdioServerParameters(command="uv", args=["run", "gbpd-mcp"], env=env)
     async with Client(server) as client:
         return await claim_days(client, days)
 

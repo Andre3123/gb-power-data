@@ -43,12 +43,14 @@ class CalibraService:
         learn_end: date,
         site: Site,
         code_version: str,
+        agent_model: str | None = None,
     ) -> None:
         self.prices = prices
         self.ledger_path = ledger_path
         self.learn_start, self.learn_end = learn_start, learn_end
         self.site = site
         self.code_version = code_version
+        self.agent_model = agent_model  # which AI model makes the claims, e.g. its LiteLLM name
         self.gate = learn_gate(prices, learn_start, learn_end)
         self._widths: dict[str, float] | None = None
 
@@ -94,10 +96,12 @@ class CalibraService:
             )
             if claim is None:
                 raise ValueError(f"cannot claim {day}: forecast day missing or a clock-change day")
+            update: dict = {}
+            if self.agent_model:
+                update["model_version"] = f"agent:{self.agent_model}"
             if not claim.context["in_scope"]:
-                claim = claim.model_copy(
-                    update={"context": {**claim.context, "override_reason": reason}}
-                )
+                update["context"] = {**claim.context, "override_reason": reason}
+            claim = claim.model_copy(update=update)
             ledger.add_claim(claim)
             return _summary(claim, new=True)
         finally:
@@ -247,6 +251,7 @@ def _summary(claim: Claim, new: bool) -> dict:
     return {
         "claim_id": claim.claim_id,
         "new": new,
+        "model_version": claim.model_version,
         "day": str(claim.target_start.astimezone(UK).date()),
         "point_gbp": round(claim.point, 2),
         "lower_gbp": round(claim.lower, 2),
