@@ -17,7 +17,9 @@ from gb_power_data.calibration.split_conformal import mondrian_half_widths, resi
 from gb_power_data.claims.dayahead import day_prices, spread_class
 from gb_power_data.claims.run_backtest import LEDGER
 from gb_power_data.ledger.store import Ledger
+from gb_power_data.optimise.dispatch import solve_day
 from gb_power_data.optimise.run_day import PILLSWOOD, PRICES
+from gb_power_data.physics.scope import physical_flags
 from gb_power_data.physics.sensitivity import physics_cases, physics_spread
 
 LEARN_START, LEARN_END = date(2023, 1, 1), date(2024, 12, 31)
@@ -42,7 +44,16 @@ def main() -> None:
             continue
         spread = physics_spread(physics_cases(forecast, PILLSWOOD), PILLSWOOD)
         cls = spread_class(forecast)
-        rows.append({"day": d, "class": cls, "price_range_gbp": 2 * widths[cls], **spread})
+        cap_binds = bool(physical_flags(solve_day(forecast, PILLSWOOD).schedule, PILLSWOOD))
+        rows.append(
+            {
+                "day": d,
+                "class": cls,
+                "price_range_gbp": 2 * widths[cls],
+                "cap_binds": cap_binds,
+                **spread,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df["physics_share"] = df["spread_gbp"] / df["price_range_gbp"]
@@ -57,12 +68,17 @@ def main() -> None:
         physics_share=("physics_share", "median"),
         cycles_min=("cycles_min", "median"),
         cycles_max=("cycles_max", "median"),
+        cap_binds_share=("cap_binds", "mean"),
     )
     print(f"{len(df)} sampled days; medians per day type (GBP per day)\n")
     print(table.round(2).to_string())
+    binds = df[df["cap_binds"]]["spread_gbp"].median()
+    free = df[~df["cap_binds"]]["spread_gbp"].median()
+    print(f"\nphysics spread, median: cap binds GBP {binds:,.0f} vs cap free GBP {free:,.0f}")
     print(
         "\nphysics_share = physics spread / width of the price-based 90% range."
         "\nAbove ~0.3, the asset's physics is a material part of the claim's uncertainty."
+        "\ncap_binds_share = share of days where the plan uses the full daily cycle cap."
     )
 
 

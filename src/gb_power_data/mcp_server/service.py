@@ -261,6 +261,7 @@ def _summary(claim: Claim, new: bool) -> dict:
         "in_scope": claim.context.get("in_scope", True),
         "scope_flags": claim.context.get("scope_flags"),
         "override_reason": claim.context.get("override_reason"),
+        "physical_flags": claim.context.get("physical_flags"),  # None: claimed before this check
     }
 
 

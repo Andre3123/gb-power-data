@@ -22,6 +22,7 @@ from gb_power_data.ledger.models import Claim
 from gb_power_data.ledger.scoring import interval_score, is_covered
 from gb_power_data.ledger.store import Ledger
 from gb_power_data.optimise.dispatch import Site, solve_day
+from gb_power_data.physics.scope import assumptions, physical_flags
 from gb_power_data.scopegate.gate import ScopeGate
 
 UK = ZoneInfo("Europe/London")
@@ -109,6 +110,8 @@ def make_claim(
             "plan_net_mw": [round(x, 6) for x in net],
             "scope_flags": scope_flags,  # None: ScopeGate was not used
             "in_scope": not scope_flags,
+            "physics": assumptions(site),  # the battery numbers this plan rests on
+            "physical_flags": physical_flags(plan.schedule, site),
         },
     )
 
