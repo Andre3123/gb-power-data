@@ -4,6 +4,8 @@ Guarantee at this stage:
 -a claim _id can be written once;
 -resolving twice from the same data returns the existing row instead
 -resolving from corrected data adds the next version and keeps the
+-every row also gets a hash-chain entry in the same transaction (see chain.py),
+ so a later change to any row is detected by verify()
 all times are stored in UTC
 """
 
@@ -15,6 +17,7 @@ from pathlib import Path
 
 import duckdb
 
+from gb_power_data.ledger import chain
 from gb_power_data.ledger.models import Claim, Resolution
 from gb_power_data.ledger.scoring import check_pair
 
@@ -66,6 +69,8 @@ class Ledger:
     def __init__(self, path: str | Path = ":memory:") -> None:
         self.con = duckdb.connect(str(path))
         self.con.execute(SCHEMA)
+        self.con.execute(chain.SCHEMA)
+        self._backfill_once()
 
     def close(self) -> None:
         self.con.close()
@@ -77,12 +82,19 @@ class Ledger:
         row["context"] = json.dumps(row["context"], sort_keys=True)
         cols = ",".join(row)
         marks = ",".join("?" for _ in row)
+        self.con.begin()  # the row and its chain entry are written together, or not at all
         try:
             self.con.execute(f"INSERT INTO claims ({cols}) VALUES ({marks})", list(row.values()))
+            self._chain("claim", claim.claim_id, row)
         except duckdb.ConstraintException as e:
+            self.con.rollback()
             raise ValueError(
                 f"claim {claim.claim_id} already exists; claims are written once"
             ) from e
+        except Exception:
+            self.con.rollback()
+            raise
+        self.con.commit()
 
     def get_claim(self, claim_id: str) -> Claim:
         cur = self.con.execute("SELECT * FROM claims WHERE claim_id = ?", [claim_id])
@@ -137,9 +149,120 @@ class Ledger:
         row["resolved_at"] = _to_db(row["resolved_at"])
         cols = ", ".join(row)
         marks = ", ".join("?" for _ in row)
-        self.con.execute(f"INSERT INTO resolutions ({cols}) VALUES ({marks})", list(row.values()))
+        self.con.begin()
+        try:
+            self.con.execute(
+                f"INSERT INTO resolutions ({cols}) VALUES ({marks})", list(row.values())
+            )
+            key = chain.resolution_key(claim_id, res.resolution_version)
+            self._chain("resolution", key, row)
+        except Exception:
+            self.con.rollback()
+            raise
+        self.con.commit()
         return res
 
     def count_resolutions(self, claim_id: str) -> int:
         q = "SELECT count(*) FROM resolutions WHERE claim_id = ?"
         return self.con.execute(q, [claim_id]).fetchone()[0]
+
+    # ---- hash chain -------------------------------------------------------------------
+
+    def head(self) -> str:
+        """entry_hash of the newest chain entry: publish it to anchor the ledger."""
+        found = self.con.execute(
+            "SELECT entry_hash FROM chain ORDER BY seq DESC LIMIT 1"
+        ).fetchone()
+        return chain.GENESIS if found is None else found[0]
+
+    def _chain(self, kind: str, key: str, row: dict, backfilled: bool = False) -> None:
+        last = self.con.execute(
+            "SELECT seq, entry_hash FROM chain ORDER BY seq DESC LIMIT 1"
+        ).fetchone()
+        seq, prev = (0, chain.GENESIS) if last is None else (last[0] + 1, last[1])
+        payload = chain.payload_hash(row)
+        self.con.execute(
+            "INSERT INTO chain VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                seq,
+                kind,
+                key,
+                payload,
+                prev,
+                chain.entry_hash(prev, kind, key, payload),
+                _to_db(datetime.now(UTC)),
+                backfilled,
+            ],
+        )
+
+    def _rows(self, table: str, order: str) -> list[dict]:
+        cur = self.con.execute(f"SELECT * FROM {table} ORDER BY {order}")
+        names = [d[0] for d in cur.description]
+        return [dict(zip(names, r, strict=True)) for r in cur.fetchall()]
+
+    def _backfill_once(self) -> None:
+        """A ledger made before the chain existed: chain its rows once, marked backfilled.
+        Only when the chain is empty: a row added later without an entry must stay visible
+        as unchained, not be quietly adopted."""
+        if self.con.execute("SELECT count(*) FROM chain").fetchone()[0] > 0:
+            return
+        claims = self._rows("claims", "recorded_at, claim_id")
+        resolutions = self._rows("resolutions", "resolved_at, claim_id, resolution_version")
+        if not claims and not resolutions:
+            return
+        self.con.begin()
+        try:
+            for row in claims:
+                self._chain("claim", row["claim_id"], row, backfilled=True)
+            for row in resolutions:
+                key = chain.resolution_key(row["claim_id"], row["resolution_version"])
+                self._chain("resolution", key, row, backfilled=True)
+        except Exception:
+            self.con.rollback()
+            raise
+        self.con.commit()
+
+    def verify(self, expected_head: str | None = None) -> chain.ChainReport:
+        """Recompute every hash from the rows as they are now and check every link.
+
+        expected_head: a head published earlier. It must still be in the chain; entries added
+        after it are fine (the ledger grows), but nothing up to it may have changed."""
+        problems: list[str] = []
+        stored = {
+            "claim": {r["claim_id"]: r for r in self._rows("claims", "claim_id")},
+            "resolution": {
+                chain.resolution_key(r["claim_id"], r["resolution_version"]): r
+                for r in self._rows("resolutions", "claim_id, resolution_version")
+            },
+        }
+        entries = self._rows("chain", "seq")
+        prev, seen = chain.GENESIS, {"claim": set(), "resolution": set()}
+        for i, e in enumerate(entries):
+            where = f"entry {e['seq']} ({e['kind']} {e['record_key']})"
+            if e["seq"] != i:
+                problems.append(f"{where}: sequence gap, expected {i}")
+            if e["prev_hash"] != prev:
+                problems.append(f"{where}: does not link to the entry before it")
+            expected = chain.entry_hash(prev, e["kind"], e["record_key"], e["payload_hash"])
+            if e["entry_hash"] != expected:
+                problems.append(f"{where}: entry hash was changed")
+            row = stored[e["kind"]].get(e["record_key"])
+            if row is None:
+                problems.append(f"{where}: row is missing (deleted)")
+            elif chain.payload_hash(row) != e["payload_hash"]:
+                problems.append(f"{where}: row was changed after it was written")
+            seen[e["kind"]].add(e["record_key"])
+            prev = e["entry_hash"]
+        for kind, rows in stored.items():
+            for key in sorted(set(rows) - seen[kind]):
+                problems.append(
+                    f"{kind} {key}: row has no chain entry (written outside the ledger)"
+                )
+        if expected_head is not None and expected_head not in {e["entry_hash"] for e in entries}:
+            problems.append("published head not found: the chain before it was rewritten")
+        return chain.ChainReport(
+            entries=len(entries),
+            backfilled=sum(e["backfilled"] for e in entries),
+            head=prev,
+            problems=problems,
+        )
