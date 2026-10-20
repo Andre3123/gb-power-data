@@ -21,6 +21,7 @@ dependencies = [
     "plotly>=7.1.0",
     "pyarrow>=25.0.1",
     "pydantic>=2",
+    "pypsa>=1.4.0",
     "rainflow>=3.2.0",
     "zenml[local]>=0.97.0",
 ]
@@ -38,6 +39,7 @@ gbpd-agent = "gb_power_data.agent.dispatch_agent:main"
 gbpd-physics = "gb_power_data.physics.run_physics:main"
 gbpd-report = "gb_power_data.report.cli:main"
 gbpd-value = "gb_power_data.value.run_value:main"
+gbpd-crosscheck = "gb_power_data.crosscheck.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
