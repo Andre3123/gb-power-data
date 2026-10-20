@@ -17,12 +17,15 @@ import pandas as pd
 
 
 def floor_promise(df: pd.DataFrame) -> pd.DataFrame:
-    """Per agent: the lower bound promised as safe revenue (never below 0) and the shortfalls.
+    """Per agent: the money promised as safe and the money missing when a promise broke.
 
     df has one row per resolved claim with columns agent, lower, realised (GBP).
+    Promised: the lower bound, or nothing when the lower bound is negative (the claim then
+    warns that the day may lose money). Broken: the day earned less than the claim's own lower
+    bound; the shortfall is the gap. A loss the claim warned about is not a broken promise.
     """
     d = df.assign(floor=df["lower"].clip(lower=0.0))
-    d["shortfall"] = (d["floor"] - d["realised"]).clip(lower=0.0)
+    d["shortfall"] = (d["lower"] - d["realised"]).clip(lower=0.0)
     d["broken"] = d["shortfall"] > 1e-9
     out = d.groupby("agent", sort=False).agg(
         days=("floor", "size"),

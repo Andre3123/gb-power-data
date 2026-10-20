@@ -18,14 +18,15 @@ STEP = np.r_[np.full(16, 40.0), np.full(16, 60.0), np.full(16, 150.0)]
 def test_floor_promise_counts_only_the_money_below_the_floor():
     df = pd.DataFrame(
         {
-            "agent": ["a", "a", "a"],
-            "lower": [100.0, 100.0, -50.0],  # a negative floor promises nothing
-            "realised": [150.0, 70.0, -20.0],
+            "agent": ["a", "a", "a", "a"],
+            "lower": [100.0, 100.0, -50.0, -50.0],  # a negative lower bound promises nothing
+            "realised": [150.0, 70.0, -20.0, -80.0],
         }
     )
     row = floor_promise(df).loc["a"]
     assert row["promised_gbp"] == 200.0
-    assert row["shortfall_gbp"] == 30.0 + 20.0  # 100 - 70, and 0 - (-20)
+    # 100 - 70 = 30; the -20 loss was warned about (above -50); -80 is 30 below its bound
+    assert row["shortfall_gbp"] == 30.0 + 30.0
     assert row["broken_days"] == 2
 
 
