@@ -69,3 +69,32 @@ def capture(df: pd.DataFrame) -> pd.DataFrame:
     out["capture_rate"] = out["earned_net_gbp"] / out["possible_net_gbp"]
     out["days"] = out["days"].astype(int)
     return out
+
+
+def shortfall_by_scope(df: pd.DataFrame) -> pd.DataFrame:
+    """Did ScopeGate warn before the money went missing? Floor promise split by in_scope.
+
+    df: one row per claim with lower, realised and in_scope (ScopeGate's verdict, made from D-2
+    data only, so it was known before the day).
+    """
+    d = df.assign(
+        floor=df["lower"].clip(lower=0.0),
+        shortfall=(df["lower"] - df["realised"]).clip(lower=0.0),
+    )
+    d["broken"] = d["shortfall"] > 1e-9
+    out = d.groupby("in_scope").agg(
+        days=("floor", "size"),
+        promised_gbp=("floor", "sum"),
+        broken_days=("broken", "sum"),
+        shortfall_gbp=("shortfall", "sum"),
+    )
+    out["share_of_shortfall"] = out["shortfall_gbp"] / d["shortfall"].sum()
+    return out.rename(index={True: "in scope", False: "flagged"})
+
+
+def worst_days(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    """The n days with the largest shortfall below the claim's lower bound."""
+    d = df.assign(shortfall=(df["lower"] - df["realised"]).clip(lower=0.0))
+    d["share_of_shortfall"] = d["shortfall"] / d["shortfall"].sum()
+    cols = ["day", "lower", "realised", "shortfall", "share_of_shortfall", "in_scope"]
+    return d.nlargest(n, "shortfall")[cols]

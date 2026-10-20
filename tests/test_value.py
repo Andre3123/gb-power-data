@@ -10,7 +10,13 @@ from gb_power_data.claims.dayahead import backtest
 from gb_power_data.ledger.store import Ledger
 from gb_power_data.optimise.run_day import PILLSWOOD
 from gb_power_data.value import run_value
-from gb_power_data.value.money import capture, floor_promise, wear_cost
+from gb_power_data.value.money import (
+    capture,
+    floor_promise,
+    shortfall_by_scope,
+    wear_cost,
+    worst_days,
+)
 
 STEP = np.r_[np.full(16, 40.0), np.full(16, 60.0), np.full(16, 150.0)]
 
@@ -70,3 +76,17 @@ def test_cli_end_to_end_on_a_small_ledger(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Floor promise" in out and "Capture rate" in out
     assert len(list(Path("data/processed").glob("perfect_foresight_*.parquet"))) == 1
+
+
+def test_scope_split_shows_where_the_money_went_missing():
+    df = pd.DataFrame(
+        {
+            "day": [1, 2, 3],
+            "lower": [100.0, 100.0, 100.0],
+            "realised": [90.0, 120.0, 10.0],  # shortfalls 10, 0, 90
+            "in_scope": [True, True, False],
+        }
+    )
+    by = shortfall_by_scope(df)
+    assert by.loc["flagged", "share_of_shortfall"] == pytest.approx(0.9)
+    assert worst_days(df, n=1)["day"].iloc[0] == 3

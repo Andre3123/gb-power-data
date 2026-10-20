@@ -24,9 +24,16 @@ from gb_power_data.claims.run_backtest import LEDGER
 from gb_power_data.optimise.dispatch import Site, solve_day
 from gb_power_data.optimise.run_day import PILLSWOOD, PRICES
 from gb_power_data.report.data import ReportError, load
-from gb_power_data.value.money import capture, floor_promise, wear_cost
+from gb_power_data.value.money import (
+    capture,
+    floor_promise,
+    shortfall_by_scope,
+    wear_cost,
+    worst_days,
+)
 
 PLAN_AGENT = "persistence-dispatch"  # all three agents share this plan; only the ranges differ
+GATE_AGENT = "persistence-gate-dispatch"  # Mondrian ranges plus ScopeGate flags
 
 
 def _plans(start: date, end: date) -> pd.DataFrame:
@@ -52,6 +59,22 @@ def _plans(start: date, end: date) -> pd.DataFrame:
             net = np.array(json.loads(ctx)["plan_net_mw"])
             out.append({"day": d, "day_type": cls, "realised_market_gbp": realised, "net": net})
     return pd.DataFrame(out)
+
+
+def _gate(start: date, end: date) -> pd.DataFrame:
+    """ScopeGate's verdict for each day, from the gated run (one row per day)."""
+    q = "SELECT target_start, context FROM claims WHERE agent_id = ?"
+    con = duckdb.connect(str(LEDGER), read_only=True)
+    try:
+        rows = con.execute(q, [GATE_AGENT]).fetchall()
+    finally:
+        con.close()
+    out = []
+    for ts, ctx in rows:
+        d = pd.Timestamp(ts, tz="UTC").tz_convert(UK).date()
+        if start <= d <= end:
+            out.append({"day": d, "in_scope": bool(json.loads(ctx).get("in_scope", True))})
+    return pd.DataFrame(out, columns=["day", "in_scope"])
 
 
 def _cache_path(site: Site) -> Path:
@@ -93,6 +116,16 @@ def main() -> None:
     fp = floor_promise(claims)
     print(fp.round(2).to_string())
 
+    gate = _gate(start, end)
+    if gate.empty:
+        print("\n2. ScopeGate in GBP: skipped, no gated claims (run gbpd-calibrate first)")
+    else:
+        mond = claims[claims["agent"] == "Mondrian"].merge(gate, on="day")
+        print(f"\n2. ScopeGate in GBP: Mondrian promises by D-2 warning ({len(mond)} days)\n")
+        print(shortfall_by_scope(mond).round(2).to_string())
+        print("\nWorst days (shortfall below the lower bound):\n")
+        print(worst_days(mond).round(2).to_string(index=False))
+
     prices = pd.read_parquet(PRICES)
     prices["settlement_date"] = pd.to_datetime(prices["settlement_date"]).dt.date
     plans = _plans(start, end)
@@ -103,7 +136,7 @@ def main() -> None:
     best = _perfect(prices, list(plans["day"]), site)
     days = plans.merge(best, on="day")
     cap = capture(days)
-    print(f"\n2. Capture rate, net of wear at GBP {site.degradation_gbp_per_mwh:.0f}/MWh\n")
+    print(f"\n3. Capture rate, net of wear at GBP {site.degradation_gbp_per_mwh:.0f}/MWh\n")
     print(cap.round(3).to_string())
 
     years = len(days) / 365.25
