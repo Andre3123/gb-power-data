@@ -1,0 +1,13 @@
+[project]
+name = "openstef-standin"
+version = "0.1.0"
+description = "A stand-in customer for Calibra: OpenSTEF forecasts exported as CSV. Separate from the main project."
+requires-python = ">=3.12"
+dependencies = [
+    "openstef>=4.6",
+    "pandas>=2.2",
+    "numpy>=2.0",
+]
+
+[tool.uv]
+package = false

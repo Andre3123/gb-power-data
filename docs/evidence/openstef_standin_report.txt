@@ -1,0 +1,38 @@
+{
+  "agent_id": "openstef-xgboost",
+  "resolved": 365,
+  "live": 0,
+  "calibrated": 355,
+  "promised_coverage": 0.9,
+  "methods": {
+    "mondrian": 305,
+    "pooled": 50,
+    "none": 10
+  },
+  "calibra_range": {
+    "coverage": 0.8761,
+    "mean_width": 6289.763944,
+    "promise_broken_share": 0.0507,
+    "shortfall": 34710.2
+  },
+  "by_scope": {
+    "flagged": {
+      "forecasts": 78,
+      "broken": 2,
+      "shortfall": 3547.7,
+      "share_of_shortfall": 0.1022
+    },
+    "in scope": {
+      "forecasts": 277,
+      "broken": 16,
+      "shortfall": 31162.5,
+      "share_of_shortfall": 0.8978
+    }
+  },
+  "agent_own_range": {
+    "forecasts": 355,
+    "coverage": 0.4592,
+    "mean_width": 2754.786761,
+    "note": "same forecasts as calibra_range, scored on the agent's own range"
+  }
+}
