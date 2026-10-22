@@ -1,0 +1,38 @@
+# fly.toml app configuration file generated for calibra-mentha on 2026-10-22T19:23:45+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'calibra-mentha'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  CALIBRA_HOME = '/data'
+  PORT = '8080'
+
+[[mounts]]
+  source = 'calibra_data'
+  destination = '/data'
+  initial_size = '1gb'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '20s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '1gb'
+  cpus = 1
+  memory_mb = 1024
