@@ -12,6 +12,7 @@ dependencies = [
     "dspy>=3.4",
     "duckdb>=1.5.6",
     "elexon-bmrs>=0.3.0",
+    "fastapi>=0.115",
     "highspy>=1.15.1",
     "jinja2>=3.1.6",
     "linopy>=0.9.1",
@@ -22,7 +23,9 @@ dependencies = [
     "pyarrow>=25.0.1",
     "pydantic>=2",
     "pypsa>=1.4.0",
+    "python-multipart>=0.0.9",
     "rainflow>=3.2.0",
+    "uvicorn>=0.30",
     "zenml[local]>=0.97.0",
 ]
 
@@ -41,6 +44,9 @@ gbpd-report = "gb_power_data.report.cli:main"
 gbpd-value = "gb_power_data.value.run_value:main"
 gbpd-crosscheck = "gb_power_data.crosscheck.cli:main"
 gbpd-verify = "gb_power_data.ledger.verify_cli:main"
+gbpd-tune = "gb_power_data.agent.tune:main"
+calibra = "gb_power_data.calibra.cli:main"
+calibra-mcp = "gb_power_data.calibra.mcp:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]

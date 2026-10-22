@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calibra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b6e6c'/%3E%3Cpath d='M9 22V10m7 12V7m7 15v-9' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <a class="brand" href="#agents">Calibra</a>
+    <nav id="nav" hidden>
+      <a href="#agents">Agents</a>
+      <a href="#onboard">Add history</a>
+      <a href="/docs" target="_blank" rel="noopener">API docs</a>
+      <span class="who" id="who"></span>
+      <button class="link" id="signout" type="button">Sign out</button>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap" aria-live="polite">
+
+<!-- 1. Sign in -->
+<section id="view-signin" class="view" hidden>
+  <div class="narrow">
+    <div class="eyebrow">Verification for AI forecasts on physical assets</div>
+    <h1>Sign in with your API key</h1>
+    <p class="lede">Calibra records your optimiser's forecasts before the event, gives each one an honest range learned from your own past errors, and keeps a record that cannot be edited afterwards.</p>
+    <form id="signin-form" class="card stack">
+      <label for="key">API key</label>
+      <input id="key" name="key" type="password" autocomplete="off" placeholder="cal_..." required>
+      <p class="hint">Your key was given to you once when your account was created. It starts with <code>cal_</code>.</p>
+      <button class="primary" type="submit">Sign in</button>
+      <p class="error" id="signin-error" hidden></p>
+    </form>
+  </div>
+</section>
+
+<!-- 2. Agents -->
+<section id="view-agents" class="view" hidden>
+  <div class="head-row">
+    <div>
+      <div class="eyebrow">Your account</div>
+      <h1>Your optimisers and agents</h1>
+    </div>
+    <a class="button primary" href="#onboard">Add your history</a>
+  </div>
+  <div id="agents-empty" class="card empty" hidden>
+    <h2>No forecasts yet</h2>
+    <p>Start by sending Calibra your past forecasts and what really happened. It replays them in time order, as if live, and shows you how honest your ranges have been.</p>
+    <a class="button primary" href="#onboard">Add your history</a>
+  </div>
+  <div id="agents-list" class="tablebox" hidden>
+    <table>
+      <thead><tr><th>Agent</th><th>Forecasts</th><th>Scored</th><th>First</th><th>Last</th><th></th></tr></thead>
+      <tbody id="agents-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 3. Onboarding -->
+<section id="view-onboard" class="view" hidden>
+  <div class="eyebrow">Add your history</div>
+  <h1>Send your past forecasts</h1>
+  <ol class="steps" id="steps">
+    <li data-step="1">Your files</li>
+    <li data-step="2">Your columns</li>
+    <li data-step="3">Check</li>
+    <li data-step="4">Import</li>
+  </ol>
+
+  <form id="step-1" class="card stack step">
+    <h2>1. Your files, as your system exports them</h2>
+    <p>Two CSV files: one row per forecast, and one row per actual result. Keep your own column names; you will tell Calibra which is which in the next step.</p>
+    <label for="file-f">Forecasts (required)</label>
+    <input id="file-f" type="file" accept=".csv,text/csv" required>
+    <label for="file-o">Actual results (to score the forecasts)</label>
+    <input id="file-o" type="file" accept=".csv,text/csv">
+    <p class="hint">Up to 20 MB each. Without the actuals, the forecasts are recorded and wait to be scored.</p>
+    <button class="primary" type="submit">Next: your columns</button>
+    <p class="error" id="error-1" hidden></p>
+  </form>
+
+  <form id="step-2" class="card stack step" hidden>
+    <h2>2. Which column is which?</h2>
+    <p>Calibra guessed from your column names. Check each one. Columns marked <em>ignore</em> are not read.</p>
+    <div class="grid2">
+      <div class="field"><label for="agent-id">Name of this optimiser or agent</label>
+        <input id="agent-id" pattern="[A-Za-z0-9._\-]+" maxlength="80" required>
+        <span class="hint">Letters, digits, <code>.</code> <code>_</code> <code>-</code>. Its track record is kept under this name.</span></div>
+      <div class="field"><label for="tz">Time zone of times written without one</label>
+        <select id="tz"></select></div>
+      <div class="field" id="period-field"><label for="period">Each forecast covers</label>
+        <select id="period">
+          <option value="30min">30 minutes</option>
+          <option value="1h">1 hour</option>
+          <option value="1D" selected>1 day</option>
+          <option value="7D">1 week</option>
+        </select>
+        <span class="hint">Used when your file has no end time.</span></div>
+      <div class="field"><label for="target-name">What is forecast, and its unit</label>
+        <div class="pair"><input id="target-name" value="daily_revenue" aria-label="What is forecast"><input id="unit" value="GBP" aria-label="Unit"></div></div>
+    </div>
+    <div class="tablebox">
+      <table class="map">
+        <thead><tr><th>Your column</th><th>First values</th><th>This is</th><th>Details</th></tr></thead>
+        <tbody id="map-body"></tbody>
+      </table>
+    </div>
+    <div id="outcome-map" class="grid2" hidden>
+      <div class="field"><label for="realised-col">In your actuals file, the actual value is</label><select id="realised-col"></select></div>
+      <div class="field"><label for="match-col">Match each actual to its forecast by</label><select id="match-col"></select></div>
+    </div>
+    <p class="hint"><b>Made at</b>: when the forecast was made (it must be before the target start). <b>Input to check</b>: a value Calibra compares with your history to flag unusual days. <b>Physical assumption</b>: a battery or asset number your plan used, like efficiency or starting charge.</p>
+    <ul class="checklist" id="map-problems"></ul>
+    <div class="actions">
+      <button type="button" class="ghost" data-back="1">Back</button>
+      <button class="primary" type="submit" id="to-3">Next: check</button>
+    </div>
+    <p class="error" id="error-2" hidden></p>
+  </form>
+
+  <div id="step-3" class="card stack step" hidden>
+    <h2>3. Is this how you meant it?</h2>
+    <p>Your first rows, read the way Calibra will record them. Nothing has been written yet.</p>
+    <div class="tablebox"><table><thead><tr><th>Target start (UTC)</th><th>Made at (UTC)</th><th>Forecast</th><th>Your range</th><th>Day type</th><th>Inputs</th></tr></thead><tbody id="preview-body"></tbody></table></div>
+    <p id="preview-count" class="hint"></p>
+    <div class="actions">
+      <button type="button" class="ghost" data-back="2">Back: fix columns</button>
+      <button type="button" class="primary" id="do-import">Import and score</button>
+    </div>
+    <p class="error" id="error-3" hidden></p>
+  </div>
+
+  <div id="step-4" class="card stack step" hidden>
+    <h2>4. Importing</h2>
+    <p id="import-status">Replaying your history in time order. Each forecast only learns from results already known when it was made.</p>
+    <div class="progress"><div></div></div>
+  </div>
+</section>
+
+<!-- 4. Report -->
+<section id="view-report" class="view" hidden>
+  <div class="head-row">
+    <div>
+      <div class="eyebrow" id="r-eyebrow"></div>
+      <h1 id="r-title">Track record</h1>
+    </div>
+    <a class="button" id="r-connect" href="#">Send new forecasts</a>
+  </div>
+  <div class="answers" id="r-answers"></div>
+
+  <section class="block">
+    <h2>Did the range keep its promise?</h2>
+    <p class="say" id="r-honesty-say"></p>
+    <div class="chart" id="r-honesty"></div>
+  </section>
+
+  <section class="block">
+    <h2>Every forecast, against what happened</h2>
+    <p class="say">Each pale bar is Calibra's range for one forecast. Dots are actual results; red dots fell below the low end.</p>
+    <div class="chart"><div id="r-time"></div></div>
+  </section>
+
+  <section class="block">
+    <h2>Where was the money missed?</h2>
+    <p class="say" id="r-scope-say"></p>
+    <div class="chart" id="r-scope"></div>
+    <details>
+      <summary>The five largest misses</summary>
+      <div class="tablebox"><table><thead><tr><th>Target start</th><th>Low end</th><th>Actual</th><th>Missed by</th><th>Flagged?</th></tr></thead><tbody id="r-worst"></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="block">
+    <h2>Can this record be trusted?</h2>
+    <div class="checks" id="r-proof"></div>
+  </section>
+</section>
+
+<!-- 5. Connect -->
+<section id="view-connect" class="view" hidden>
+  <div class="eyebrow" id="c-eyebrow">Connect</div>
+  <h1>Send new forecasts from your own software</h1>
+  <p class="lede">Send each forecast before its target period, and the actual value once it is known. Calibra adds its range, checks scope, and records it.</p>
+  <div class="card stack">
+    <h2>Your API key</h2>
+    <p>Keep it secret, like a password. Set it once in your terminal or your server's settings:</p>
+    <pre><code id="c-env"></code></pre>
+    <div class="actions"><button type="button" class="ghost" id="c-copy-key">Copy my key</button><span class="hint" id="c-copied" hidden>Copied.</span></div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="curl">curl</button>
+    <button role="tab" aria-selected="false" data-tab="python">Python</button>
+    <button role="tab" aria-selected="false" data-tab="mcp">AI agent (MCP)</button>
+    <button role="tab" aria-selected="false" data-tab="file">Files</button>
+  </div>
+  <div class="card stack">
+    <pre><code id="c-snippet"></code></pre>
+    <div class="actions"><button type="button" class="ghost" id="c-copy">Copy</button><span class="hint" id="c-copied2" hidden>Copied.</span></div>
+    <p class="hint" id="c-note"></p>
+  </div>
+</section>
+
+</main>
+<script src="app.js"></script>
+</body>
+</html>
