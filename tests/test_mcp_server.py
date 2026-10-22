@@ -104,3 +104,17 @@ def test_claims_record_which_ai_model_made_them(service):
     )
     claim = named.make_claim(START + timedelta(days=41))
     assert claim["model_version"] == "agent:test/m1"
+
+
+def test_explain_flag_never_uses_claims_resolved_after_the_claim_is_made(tmp_path):
+    days = {START + timedelta(days=i): DAY_SHAPE * SCALES[i % 3] for i in range(45)}
+    prices = price_table(days)
+    path = tmp_path / "ledger.duckdb"
+    ledger = Ledger(path)
+    backtest(prices, START + timedelta(days=2), LEARN_END, SITE, ledger, "t", "persistence-gate")
+    ledger.close()
+    svc = CalibraService(prices, path, START, LEARN_END, SITE, "t")
+    day = START + timedelta(days=10)
+    facts = svc.explain_flag("max_price", day)
+    assert facts["history_until"] == str(day - timedelta(days=2))
+    assert facts["in_scope"]["claims"] == 7  # gated claims for days 2..8 only

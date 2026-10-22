@@ -7,7 +7,7 @@ The ledger is opened and closed on each call, so other programs can use it in be
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -154,14 +154,19 @@ class CalibraService:
         }
 
     def explain_flag(self, feature: str, day: date | None = None) -> dict:
-        """Ledger evidence for one ScopeGate feature. Facts only: causes are for the agent."""
+        """Ledger evidence for one ScopeGate feature. Facts only: causes are for the agent.
+
+        With a day, the ledger history stops at D-2: only claims already resolved when the claim
+        for D is made (at the start of D-1) are used, so a backtest never sees the future."""
         if feature not in FEATURES:
             raise ValueError(f"unknown feature {feature!r}; choose from {', '.join(FEATURES)}")
-        df = self._resolved(GATED_AGENT, date(1900, 1, 1), date(2999, 12, 31))
+        until = date(2999, 12, 31) if day is None else day - timedelta(days=2)
+        df = self._resolved(GATED_AGENT, date(1900, 1, 1), until)
         evidence: dict = {
             "feature": feature,
             "learned_band": [round(self.gate.low[feature], 2), round(self.gate.high[feature], 2)],
             "history_agent": GATED_AGENT,
+            "history_until": None if day is None else str(until),
         }
         if not df.empty:
             total_bill = df["score"].sum()
