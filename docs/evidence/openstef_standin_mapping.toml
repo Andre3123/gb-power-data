@@ -1,0 +1,22 @@
+# How Calibra reads this customer's files. Written by make_export.py.
+agent_id = "openstef-xgboost"
+timezone = "UTC"
+period = "1D"
+target_name = "nd_evening_peak"
+unit = "MW"
+
+[columns]
+target_start = "delivery_day"
+as_of = "created_at"
+point = "nd_forecast_mw"
+lower = "nd_p05_mw"
+upper = "nd_p95_mw"
+day_type = "day_class"
+model_version = "model_version"
+
+[features]
+nd_last_week_same_time_mw = "nd_last_week_same_time_mw"
+nd_latest_mw = "nd_latest_mw"
+
+[outcomes]
+realised = "nd_actual_mw"
