@@ -255,7 +255,10 @@ def read_table(path: str | Path) -> list[dict[str, str]]:
 GUESSES = {
     # order matters: the first column to match a field is taken, so the specific fields go first
     "as_of": r"creat|issue|as_of|asof|made|run_time|forecast_time|generated|publish",
-    "target_start": r"deliver|target|settlement|period_start|^date$|^day$|start|(^|_)(time|timestamp|datetime|ds)$",
+    "target_start": (
+        r"deliver|target|settlement|period_start|^date$|^day$|start"
+        r"|(^|_)(time|timestamp|datetime|ds)$"
+    ),
     "target_end": r"(^|_)end(_|$)",
     "lower": r"(^|_)(p|q)0?[15]0?(_|$)|lower|(^|_)lo(w)?(_|$)|lcb|lb$",
     "upper": r"(^|_)(p|q)(9[05])(_|$)|upper|(^|_)hi(gh)?(_|$)|ucb|ub$",

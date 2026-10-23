@@ -125,13 +125,29 @@ def test_init_drafts_a_mapping_that_loads(tmp_path):
 def test_guess_handles_unit_suffixes_and_common_names():
     from gb_power_data.calibra.mapping import guess
 
-    rows = [{"target_start": "2024-01-01 17:00", "made_at": "2023-12-31 09:00", "nd_forecast_mw": "30000",
-             "nd_p05_mw": "28000", "nd_p95_mw": "32000", "temperature_c": "5"}]
+    rows = [
+        {
+            "target_start": "2024-01-01 17:00",
+            "made_at": "2023-12-31 09:00",
+            "nd_forecast_mw": "30000",
+            "nd_p05_mw": "28000",
+            "nd_p95_mw": "32000",
+            "temperature_c": "5",
+        }
+    ]
     cols = guess(rows)["columns"]
     assert cols["point"] == "nd_forecast_mw"
     assert (cols["lower"], cols["upper"]) == ("nd_p05_mw", "nd_p95_mw")
     assert (cols["as_of"], cols["target_start"]) == ("made_at", "target_start")
-    rows = [{"timestamp": "2024-01-01", "issued_at": "2023-12-31", "predicted": "3", "q05": "1", "q95": "5"}]
+    rows = [
+        {
+            "timestamp": "2024-01-01",
+            "issued_at": "2023-12-31",
+            "predicted": "3",
+            "q05": "1",
+            "q95": "5",
+        }
+    ]
     cols = guess(rows)["columns"]
     assert (cols["point"], cols["lower"], cols["upper"]) == ("predicted", "q05", "q95")
     assert (cols["as_of"], cols["target_start"]) == ("issued_at", "timestamp")
