@@ -89,7 +89,7 @@ with your key. Then:
 3. **Check**: the first rows read the way they will be recorded. Nothing is written yet.
 4. **Import**: your history is replayed in time order, then your track record opens.
 
-**Send new forecasts** shows ready-to-copy `curl`, Python and MCP snippets for your agent.
+**Connect your software** shows ready-to-copy `curl`, Python and MCP snippets for your agent.
 
 ## The HTTPS API (hosted Calibra)
 
