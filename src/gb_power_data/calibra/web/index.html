@@ -16,7 +16,7 @@
     <a class="brand" href="#agents">Calibra</a>
     <nav id="nav" hidden>
       <a href="#agents">Agents</a>
-      <a href="#onboard">Add history</a>
+      <a href="#onboard">Add data</a>
       <a href="/docs" target="_blank" rel="noopener">API docs</a>
       <span class="who" id="who"></span>
       <button class="link" id="signout" type="button">Sign out</button>
@@ -49,12 +49,12 @@
       <div class="eyebrow">Your account</div>
       <h1>Your optimisers and agents</h1>
     </div>
-    <a class="button primary" href="#onboard">Add your history</a>
+    <a class="button primary" href="#onboard">Add past forecasts and results</a>
   </div>
   <div id="agents-empty" class="card empty" hidden>
     <h2>No forecasts yet</h2>
     <p>Start by sending Calibra your past forecasts and what really happened. It replays them in time order, as if live, and shows you how honest your ranges have been.</p>
-    <a class="button primary" href="#onboard">Add your history</a>
+    <a class="button primary" href="#onboard">Add past forecasts and results</a>
   </div>
   <div id="agents-list" class="tablebox" hidden>
     <table>
@@ -66,7 +66,7 @@
 
 <!-- 3. Onboarding -->
 <section id="view-onboard" class="view" hidden>
-  <div class="eyebrow">Add your history</div>
+  <div class="eyebrow">Add past forecasts and results</div>
   <h1>Send your past forecasts</h1>
   <ol class="steps" id="steps">
     <li data-step="1">Your files</li>
@@ -76,11 +76,31 @@
   </ol>
 
   <form id="step-1" class="card stack step">
-    <h2>1. Your files, as your system exports them</h2>
-    <p>Two CSV files: one row per forecast, and one row per actual result. Keep your own column names; you will tell Calibra which is which in the next step.</p>
-    <label for="file-f">Forecasts (required)</label>
+    <h2>1. Your past forecasts and what really happened</h2>
+    <p><b>What this is.</b> Calibra learns how wrong your forecaster has been, then puts an honest 90% range around each new forecast. For that it needs two CSV files from your system. Column names can be anything; you tell Calibra which is which in step 2.</p>
+    <div class="spec">
+      <div>
+        <p><b>File 1: Forecasts</b>. One row per forecast.</p>
+        <ul>
+          <li><b>When it is for</b>: start time of the period forecast, e.g. <code>2025-03-14 17:00</code></li>
+          <li><b>When it was made</b>: must be <em>before</em> the start time</li>
+          <li><b>The forecast number</b>: one number per row</li>
+          <li class="opt">Optional: your own low and high, the kind of day, inputs such as temperature</li>
+        </ul>
+      </div>
+      <div>
+        <p><b>File 2: Actual results</b>. One row per period that has ended.</p>
+        <ul>
+          <li><b>When it is for</b>: the same start time as in file 1</li>
+          <li><b>The actual number</b>: what really happened</li>
+        </ul>
+      </div>
+    </div>
+    <p class="hint">More history gives a better range. Calibra needs at least 20 results for a kind of day to give it its own range. If a time is missing or the files do not line up, the import stops with a message and nothing is saved.</p>
+    <p class="hint">Not sure of the format? <button type="button" class="linklike" id="dl-f">Download example forecasts.csv</button> and <button type="button" class="linklike" id="dl-o">example outcomes.csv</button>, open them, and compare with yours.</p>
+    <label for="file-f">File 1: Forecasts (required)</label>
     <input id="file-f" type="file" accept=".csv,text/csv" required>
-    <label for="file-o">Actual results (to score the forecasts)</label>
+    <label for="file-o">File 2: Actual results (to score the forecasts)</label>
     <input id="file-o" type="file" accept=".csv,text/csv">
     <p class="hint">Up to 20 MB each. Without the actuals, the forecasts are recorded and wait to be scored.</p>
     <button class="primary" type="submit">Next: your columns</button>
@@ -89,7 +109,7 @@
 
   <form id="step-2" class="card stack step" hidden>
     <h2>2. Which column is which?</h2>
-    <p>Calibra guessed from your column names. Check each one. Columns marked <em>ignore</em> are not read.</p>
+    <p>Calibra guessed from your column names. Check each row of the table: the three you must have are <b>Made at</b>, <b>Target start</b> and <b>Forecast</b>. Columns marked <em>ignore</em> are not read.</p>
     <div class="grid2">
       <div class="field"><label for="agent-id">Name of this optimiser or agent</label>
         <input id="agent-id" pattern="[A-Za-z0-9._\-]+" maxlength="80" required>
@@ -105,7 +125,7 @@
         </select>
         <span class="hint">Used when your file has no end time.</span></div>
       <div class="field"><label for="target-name">What is forecast, and its unit</label>
-        <div class="pair"><input id="target-name" value="daily_revenue" aria-label="What is forecast"><input id="unit" value="GBP" aria-label="Unit"></div></div>
+        <div class="pair"><input id="target-name" placeholder="e.g. demand" aria-label="What is forecast"><input id="unit" placeholder="e.g. MW or GBP" aria-label="Unit"></div></div>
     </div>
     <div class="tablebox">
       <table class="map">

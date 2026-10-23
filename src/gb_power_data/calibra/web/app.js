@@ -168,7 +168,7 @@ function buildMapping() {
   for (const [field, col] of Object.entries(g.columns)) roleOf[col] = { role: field };
   for (const [name, col] of Object.entries(g.assets || {})) if (!roleOf[col]) roleOf[col] = { role: "asset", name };
   for (const [name, col] of Object.entries(g.features)) if (!roleOf[col]) roleOf[col] = { role: "feature", name };
-  $("agent-id").value = $("agent-id").value || "my-optimiser";
+  $("agent-id").value = $("agent-id").value || "my-forecaster";
   const tz = $("tz");
   const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const zones = [...new Set([...ZONES, local])];
@@ -428,7 +428,7 @@ async function loadReport(agent) {
 // ---- 5. connect ----------------------------------------------------------------------
 let snippets = {};
 async function loadConnect(agent) {
-  S.agent = agent || S.agent || "my-optimiser";
+  S.agent = agent || S.agent || "my-forecaster";
   $("c-eyebrow").textContent = `Connect · ${S.agent}`;
   const base = location.origin;
   let names = ["input_1"];
@@ -459,7 +459,7 @@ async function loadConnect(agent) {
       note: "Any HTTP library works; the full list of calls is in the API docs." },
     mcp: { code: JSON.stringify({ mcpServers: { calibra: { command: "uvx", args: ["--from", "git+https://github.com/Andre3123/gb-power-data", "calibra-mcp"], env: { CALIBRA_API_URL: base, CALIBRA_KEY: "<your key>" } } } }, null, 2),
       note: "Add this to your AI agent's MCP settings (Claude, an IDE, or any MCP client). The agent gets check_scope, submit_forecast, calibration_status and agent_report. It cannot record actual results, so it never grades itself. Needs uv installed." },
-    file: { code: `New forecasts and results as files:\n\n1. Export them with the same columns as your history.\n2. Open "Add history" and upload them.\n3. Forecasts already recorded are kept as they are;\n   new ones are added; new results are scored.\n\nSave your column choices to reuse them:`,
+    file: { code: `New forecasts and results as files:\n\n1. Export them with the same columns as your history.\n2. Open "Add data" and upload them.\n3. Forecasts already recorded are kept as they are;\n   new ones are added; new results are scored.\n\nSave your column choices to reuse them:`,
       note: "", save: true },
   };
   selectTab("curl");
@@ -486,3 +486,23 @@ $("c-copy").addEventListener("click", () => copy($("c-snippet").textContent, "c-
 $("c-copy-key").addEventListener("click", () => copy(S.key, "c-copied"));
 
 route();
+
+// Example files, made in the browser, so a first-time user can see the exact shape.
+function exampleCsv(kind) {
+  const f = ["target_start,made_at,forecast,low,high"], o = ["target_start,actual"];
+  for (let i = 0; i < 40; i++) {
+    const d = new Date(Date.UTC(2025, 0, 1 + i)), prev = new Date(Date.UTC(2024, 11, 31 + i));
+    const day = d.toISOString().slice(0, 10), made = prev.toISOString().slice(0, 10) + " 09:00";
+    const fc = 100 + Math.round(10 * Math.sin(i / 3)), miss = Math.round(8 * Math.cos(i * 1.7));
+    f.push(`${day} 17:00,${made},${fc},${fc - 10},${fc + 10}`);
+    o.push(`${day} 17:00,${fc + miss}`);
+  }
+  return (kind === "f" ? f : o).join("\n") + "\n";
+}
+function download(name, text) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+$("dl-f").addEventListener("click", () => download("forecasts.csv", exampleCsv("f")));
+$("dl-o").addEventListener("click", () => download("outcomes.csv", exampleCsv("o")));
