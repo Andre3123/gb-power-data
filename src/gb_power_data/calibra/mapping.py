@@ -253,12 +253,13 @@ def read_table(path: str | Path) -> list[dict[str, str]]:
 # ---- drafting a mapping from a customer's file -------------------------------------------
 
 GUESSES = {
-    "target_start": r"deliver|target|settlement|period_start|^date$|^day$|start",
-    "target_end": r"end",
-    "as_of": r"creat|issue|as_of|asof|made|run_time|forecast_time|generated",
-    "point": r"rev|^forecast$|^prediction$|point|expect|^plan",
-    "lower": r"p0?5$|p10$|lower|_lo$|low$",
-    "upper": r"p95$|p90$|upper|_hi$|high$",
+    # order matters: the first column to match a field is taken, so the specific fields go first
+    "as_of": r"creat|issue|as_of|asof|made|run_time|forecast_time|generated|publish",
+    "target_start": r"deliver|target|settlement|period_start|^date$|^day$|start|(^|_)(time|timestamp|datetime|ds)$",
+    "target_end": r"(^|_)end(_|$)",
+    "lower": r"(^|_)(p|q)0?[15]0?(_|$)|lower|(^|_)lo(w)?(_|$)|lcb|lb$",
+    "upper": r"(^|_)(p|q)(9[05])(_|$)|upper|(^|_)hi(gh)?(_|$)|ucb|ub$",
+    "point": r"rev|forecast|predict|point|expect|^plan|yhat|median|(^|_)mean(_|$)",
     "day_type": r"regime|class|day_type|category",
     "forecast_id": r"^id$|forecast_id|run_id",
 }
