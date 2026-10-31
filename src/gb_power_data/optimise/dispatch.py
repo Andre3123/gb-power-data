@@ -52,14 +52,27 @@ class Dispatch:
     simultaneous_periods: int  # periods charging and discharging at once; must be 0
 
 
-def _build(prices: pd.Series, site: Site, mode: np.ndarray | None = None) -> linopy.Model:
+def _build(
+    prices: pd.Series,
+    site: Site,
+    mode: np.ndarray | None = None,
+    buy_prices: pd.Series | None = None,
+) -> linopy.Model:
     """Build the model. With `mode` given (1 = charging), the on/off choice is fixed and the
-    model becomes a plain LP, which is what lets us read shadow prices."""
+    model becomes a plain LP, which is what lets us read shadow prices.
+
+    `prices` values energy sold (discharged). `buy_prices`, if given, values energy bought
+    (charged); None means the same prices for both, which is the usual plan."""
     if prices.empty or prices.isna().any():
         raise ValueError("prices must be non-empty with no gaps")
+    if buy_prices is None:
+        buy_prices = prices
+    if len(buy_prices) != len(prices) or buy_prices.isna().any():
+        raise ValueError("buy_prices must have the same length as prices, with no gaps")
     n = len(prices)
     t = pd.RangeIndex(n, name="t")
     price = xr.DataArray(prices.to_numpy(dtype=float), coords=[t])
+    buy = xr.DataArray(buy_prices.to_numpy(dtype=float), coords=[t])
     e0 = site.soc_start * site.energy_mwh
     grid = site.power_mw if site.grid_mw is None else site.grid_mw
 
@@ -102,7 +115,9 @@ def _build(prices: pd.Series, site: Site, mode: np.ndarray | None = None) -> lin
     m.add_constraints(charge - discharge <= grid, name="import_limit")
 
     wear = site.degradation_gbp_per_mwh * site.dt_h * discharge
-    m.add_objective((price * site.dt_h * (discharge - charge) - wear).sum(), sense="max")
+    sold = price * site.dt_h * discharge
+    bought = buy * site.dt_h * charge
+    m.add_objective((sold - bought - wear).sum(), sense="max")
     return m
 
 
@@ -112,20 +127,27 @@ def _solve(m: linopy.Model) -> None:
         raise RuntimeError(f"solver failed: {status} / {condition}")
 
 
-def solve_day(prices: pd.Series, site: Site) -> Dispatch:
-    m = _build(prices, site)
+def solve_day(prices: pd.Series, site: Site, buy_prices: pd.Series | None = None) -> Dispatch:
+    """Best plan for one day. `buy_prices` (optional) values charging separately from
+    discharging; the careful plan uses the high edge of a price range to buy and the low
+    edge to sell."""
+    if buy_prices is None:
+        buy_prices = prices
+    m = _build(prices, site, buy_prices=buy_prices)
     _solve(m)
     schedule = pd.DataFrame(
         {
             "price": prices.to_numpy(dtype=float),
+            "buy_price": buy_prices.to_numpy(dtype=float),
             "charge_mw": m.variables["charge"].solution.to_numpy(),
             "discharge_mw": m.variables["discharge"].solution.to_numpy(),
             "energy_mwh": m.variables["energy"].solution.to_numpy(),
         },
         index=prices.index,
     )
-    net_mw = schedule.discharge_mw - schedule.charge_mw
-    revenue = float((schedule.price * net_mw * site.dt_h).sum())  # market revenue, before wear
+    sold = schedule.price * schedule.discharge_mw * site.dt_h
+    bought = schedule.buy_price * schedule.charge_mw * site.dt_h
+    revenue = float((sold - bought).sum())  # market revenue at the planning prices, before wear
     both = ((schedule.charge_mw > 1e-6) & (schedule.discharge_mw > 1e-6)).sum()
     return Dispatch(schedule=schedule, revenue_gbp=revenue, simultaneous_periods=int(both))
 

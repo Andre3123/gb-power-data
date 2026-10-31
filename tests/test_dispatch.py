@@ -91,3 +91,27 @@ def test_shadow_price_is_the_cost_then_the_value_of_a_stored_mwh():
     lam = shadow_prices(prices, SITE, solve_day(prices, SITE))
     assert lam.iloc[0] == pytest.approx(40 / SITE.eta_charge, rel=1e-6)
     assert lam.iloc[-1] == pytest.approx(150 * SITE.eta_discharge, rel=1e-6)
+
+
+def test_same_buy_and_sell_prices_give_the_usual_plan():
+    usual = solve_day(step_prices(), SITE)
+    both = solve_day(step_prices(), SITE, buy_prices=step_prices())
+    assert both.revenue_gbp == pytest.approx(usual.revenue_gbp, rel=1e-9)
+
+
+def test_dearer_buying_is_priced_into_the_plan():
+    # buying now costs 50 instead of 40; the cycle still pays, so the plan is the same
+    # size but each MWh bought costs 10 more
+    buy = step_prices() + 10.0
+    planned = solve_day(step_prices(), SITE, buy_prices=buy).revenue_gbp
+    assert planned == pytest.approx(98 * SITE.eta_discharge * 150 - 98 / SITE.eta_charge * 50)
+
+
+def test_buying_dearer_than_any_sale_stops_trading():
+    buy = pd.Series(np.full(48, 1_000.0))
+    assert solve_day(step_prices(), SITE, buy_prices=buy).revenue_gbp == pytest.approx(0, abs=1e-6)
+
+
+def test_buy_prices_must_line_up_with_prices():
+    with pytest.raises(ValueError, match="same length"):
+        solve_day(step_prices(), SITE, buy_prices=pd.Series(np.full(10, 40.0)))
